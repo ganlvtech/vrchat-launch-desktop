@@ -1,0 +1,20 @@
+[package]
+name = "launchnovr"
+version = "1.0.0"
+edition = "2024"
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
+
+[dependencies]
+anyhow = "1.0.104"
+windows-registry = {version = "0.100.0"}
+windows-result = {version = "0.100.0"}
+
+[dependencies.windows]
+version = "0.62.2"
+features = [
+    "Win32_UI_WindowsAndMessaging",
+]

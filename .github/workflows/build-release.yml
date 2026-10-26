@@ -1,0 +1,50 @@
+name: Build And Publish Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      doRelease:
+        description: 'Publish new release'
+        type: boolean
+        default: false
+        required: false
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    permissions:
+      id-token: write
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build
+        run: cargo build --target x86_64-pc-windows-msvc --locked --release --verbose
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: release
+          overwrite: true
+          path: target/x86_64-pc-windows-msvc/release/launchnovr.exe
+
+      - name: Get Cargo.toml version
+        id: get_version
+        shell: bash
+        run: echo "package_version=$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[] | select(.name == "launchnovr") | .version')" >> $GITHUB_OUTPUT
+
+      - name: Rename binary
+        shell: bash
+        run: mv target/x86_64-pc-windows-msvc/release/launchnovr.exe "target/x86_64-pc-windows-msvc/release/launchnovr-${{ steps.get_version.outputs.package_version }}.exe"
+
+      - name: Upload artifacts to GitHub Release
+        if: ${{ github.event.inputs.doRelease == 'true' }}
+        shell: bash
+        run: |
+          TAGNAME="v${{ steps.get_version.outputs.package_version }}"
+          gh release delete --cleanup-tag --yes "$TAGNAME" || true
+          sleep 5
+          gh release create "$TAGNAME" --target "${{ github.ref }}" --title "$TAGNAME" "target/x86_64-pc-windows-msvc/release/launchnovr-${{ steps.get_version.outputs.package_version }}.exe"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
